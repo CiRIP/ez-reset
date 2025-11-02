@@ -1,5 +1,7 @@
 # ez-reset
 
+<img align="right" src="img.png">
+
 Reset waste ink counters on Epson printers via USB on Windows.
 
 **Want to help with development, learn more about Epson printers, or simply need help?** Join the Discord server for a new community I want to try starting called "NoSPE - No Stupid Printer Errors": https://discord.gg/fspDRHNrU3
