@@ -15,13 +15,20 @@ Reset waste ink counters on Epson printers via USB on Windows.
 - Windows
 - Supported Epson printer connected via USB
 
-## Installation
+## Installation (easy)
+
+Grab a prebuilt binary from the *Releases* tab or [download directly from here](github.com/CiRIP/ez-reset/releases/latest/download/ez-reset.exe).
+
+## Installation (advanced)
+
+If you wish to experiment with the code, or otherwise distrust the prebuilt .exe, you can install the package on your
+system:
 
 ```bash
 pip install .
 ```
 
-## Usage
+## Usage (advanced)
 
 Run the GUI:
 
@@ -41,4 +48,5 @@ This tool modifies printer firmware counters. Use at your own risk. Always resta
 
 ## See also
 
-
+- [Ircama/epson_print_conf](https://github.com/Ircama/epson_print_conf)
+- [abrasive/epson-reversing](https://github.com/abrasive/epson-reversing)
