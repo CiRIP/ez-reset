@@ -10,25 +10,16 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Self
 
-from .utils import parse_status_struct
-
-# What follows is a massive hack. The default enums from the enum library are type checked by a custom mypy plugin
-# that describe how they should be typed. If that plugin is not applied to an enum datatype, any code that is typed
-# to expect that enum will complain that it got the enum's value type instead. This works out of the box for enums from
-# the standard enum library, but MultiValueEnums do not get the same treatment, as the mypy plugin is not aware of
-# their existence. The workaround here is to trick mypy when typechecking that MultiValueEnum is in fact a regular
-# Enum, so it can apply the plugin to it. The people responsible for this should be ashamed.
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from enum import Enum as MultiValueEnum
-else:
-    from aenum import MultiValueEnum
+
+from .utils import parse_status_struct
 
 
-class PrinterState(MultiValueEnum):
+class PrinterState(Enum):
     ERROR = 0x00
     SELF_PRINTING = 0x01
-    BUSY = 0x02, 0x0D
+    BUSY = 0x02
     WAITING = 0x03
     IDLE = 0x04
     PAUSE = 0x05
@@ -41,23 +32,24 @@ class PrinterState(MultiValueEnum):
     INIT_PAPER = 0x0C
 
     @classmethod
-    def _missing_value_(cls, _key: str) -> Self:
+    def _missing_(cls, _key: str) -> Self:
         return cls.ERROR
 
 
-class PrinterError(MultiValueEnum):
+class PrinterError(Enum):
     NONE = -1
     FATAL = 0x00
     INTERFACE = 0x01
-    COVEROPEN = 0x02, 0x25
     PAPERJAM = 0x04
-    INKOUT = 0x05, 0x47
+    INKOUT = 0x05
     PAPEROUT = 0x06
-    SIZE_TYPE_PATH = 0x0A, 0x0C
+    PAPERSIZE = 0x0A
+    PAPERPATH = 0x0C
     SERVICEREQ = 0x10
     DOUBLEFEED = 0x12
     INKCOVEROPEN = 0x1A
     NOMAINTENANCEBOX = 0x22
+    COVEROPEN = 0x25
     NOTRAY = 0x29
     CARDLOADING = 0x2A
     CDDVDCONFIG = 0x2B
@@ -70,23 +62,24 @@ class PrinterError(MultiValueEnum):
     PRINTPACKEND = 0x34
     MAINTENANCEBOXCOVEROPEN = 0x36
     SCANNEROPEN = 0x37
-    CDRGUIDEOPEN = 0x38, 0x44
+    CDRGUIDEOPEN = 0x38
+    CDREXIST = 0x44
     CDREXIST_MAINTE = 0x45
     TRAYCLOSE = 0x46
 
     @classmethod
-    def _missing_value_(cls, _key: str) -> Self:
+    def _missing_(cls, _key: str) -> Self:
         return cls.FATAL
 
 
-class PaperPath(MultiValueEnum):
+class PaperPath(Enum):
     UNKNOWN = -1
     ROLL = 0x00
     FANFOLD = 0x01
     ROLL_BACK = 0x02
 
     @classmethod
-    def _missing_value_(cls, _key: str) -> Self:
+    def _missing_(cls, _key: str) -> Self:
         return cls.UNKNOWN
 
 

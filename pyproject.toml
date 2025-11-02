@@ -5,7 +5,6 @@ description = "Easy reset tool for Windows over USB for printers with a certain 
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "aenum>=3.1.16",
     "pywin32>=311",
 ]
 

@@ -4,12 +4,12 @@ import traceback
 from collections.abc import Iterable
 from tkinter import messagebox, ttk
 
-from .d4 import D4ControlBackend
-from .devices import by_model
-from .printer import Printer
-from .status import InkColor, InkLevel
-from .utils import parse_identifier
-from .win_usbprint import USBPRINTTransport, enumerate_printers
+from ez_reset.d4 import D4ControlBackend
+from ez_reset.devices import by_model
+from ez_reset.printer import Printer
+from ez_reset.status import InkColor, InkLevel
+from ez_reset.utils import parse_identifier
+from ez_reset.win_usbprint import USBPRINTTransport, enumerate_printers
 
 
 class PrinterList(ttk.Frame):
