@@ -1022,7 +1022,7 @@ ez-reset has definitions for (and thus *theoretically* supports) the following p
 
 ## Installation (easy)
 
-Grab a prebuilt binary from the *Releases* tab or [download directly from here](github.com/CiRIP/ez-reset/releases/latest/download/ez-reset.exe).
+Grab a prebuilt binary from the *Releases* tab or [download directly from here](https://github.com/CiRIP/ez-reset/releases/latest/download/ez-reset.exe).
 
 ## Installation (advanced)
 
