@@ -1,4 +1,5 @@
 import logging
+import platform
 import tkinter as tk
 import traceback
 from collections.abc import Iterable
@@ -9,7 +10,24 @@ from ez_reset.devices import by_model
 from ez_reset.printer import Printer
 from ez_reset.status import InkColor, InkLevel
 from ez_reset.utils import parse_identifier
-from ez_reset.win_usbprint import USBPRINTTransport, enumerate_printers
+
+if platform.system() == "Windows":
+    from ez_reset.win_usbprint import USBPRINTTransport, enumerate_printers
+
+    USB_BACKEND_AVAILABLE = True
+    USB_BACKEND_MESSAGE = ""
+else:
+    try:
+        from ez_reset.usbprint import USBPRINTTransport, enumerate_printers
+    except ImportError:
+        USB_BACKEND_AVAILABLE = False
+        USB_BACKEND_MESSAGE = "Install non-Windows USB dependencies (pyusb + libusb) to use this app."
+
+        def enumerate_printers() -> Iterable[str]:
+            return ()
+    else:
+        USB_BACKEND_AVAILABLE = True
+        USB_BACKEND_MESSAGE = ""
 
 
 class PrinterList(ttk.Frame):
@@ -22,6 +40,11 @@ class PrinterList(ttk.Frame):
         self.list.pack(fill=tk.BOTH, expand=True)
         self.list.bind("<Double-Button-1>", self.open_printer)
 
+        if not USB_BACKEND_AVAILABLE:
+            self.list.insert(0, USB_BACKEND_MESSAGE)
+            self.list.configure(state=tk.DISABLED)
+            return
+
         self.update_printers()
 
     def update_printers(self) -> None:
@@ -33,6 +56,10 @@ class PrinterList(ttk.Frame):
             self.list.insert(idx, device)
 
     def open_printer(self, _event: tk.Event) -> None:
+        if not USB_BACKEND_AVAILABLE:
+            messagebox.showinfo("Unsupported platform", USB_BACKEND_MESSAGE)
+            return
+
         selected_index = self.list.curselection()[0]
 
         usb_transport = USBPRINTTransport(self._printers[selected_index]).__enter__()
@@ -197,7 +224,8 @@ logger = logging.getLogger()
 root = tk.Tk()
 root.title("ez-reset")
 style = ttk.Style(root)
-style.theme_use("winnative")
+if platform.system() == "Windows":
+    style.theme_use("winnative")
 
 
 def show_error(self, *args) -> None:  # noqa: ANN001,ANN002,ARG001
