@@ -20,14 +20,16 @@ def current_language() -> str:
     if override in {"en", "es"}:
         return override
 
-    candidates = [
-        locale.getlocale()[0],
-        os.environ.get("LANG"),
-        os.environ.get("LC_ALL"),
-        os.environ.get("LC_MESSAGES"),
-    ]
-    for candidate in candidates:
-        if language_from_tag(candidate) == "es":
+    try:
+        locale_name = locale.getlocale()[0]
+    except ValueError:
+        locale_name = None
+
+    if locale_name:
+        return language_from_tag(locale_name)
+
+    for key in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        if language_from_tag(os.environ.get(key)) == "es":
             return "es"
     return "en"
 
