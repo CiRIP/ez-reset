@@ -6,10 +6,13 @@ from tkinter import messagebox, ttk
 
 from ez_reset.d4 import D4ControlBackend
 from ez_reset.devices import by_model
+from ez_reset.i18n import strings_for
 from ez_reset.printer import Printer
 from ez_reset.status import InkColor, InkLevel
 from ez_reset.utils import parse_identifier
 from ez_reset.win_usbprint import USBPRINTTransport, enumerate_printers
+
+STRINGS = strings_for()
 
 
 class PrinterList(ttk.Frame):
@@ -67,15 +70,15 @@ class PrinterInfo(ttk.Frame):
 
         self.style = ttk.Style(master)
 
-        self.levels_frame = ttk.LabelFrame(self, text="Ink Levels")
+        self.levels_frame = ttk.LabelFrame(self, text=STRINGS.ink_levels)
         self.levels_frame.pack(fill="x", padx=4)
 
-        self.waste_frame = ttk.LabelFrame(self, text="Waste Levels")
+        self.waste_frame = ttk.LabelFrame(self, text=STRINGS.waste_levels)
         self.waste_frame.pack(fill="x", padx=4)
 
         self.waste_reset = ttk.Button(
             self.waste_frame,
-            text="Reset All",
+            text=STRINGS.reset_all,
             command=self.reset_waste,
         )
         self.waste_reset.pack(fill="x", side="bottom", padx=2, pady=2)
@@ -83,7 +86,7 @@ class PrinterInfo(ttk.Frame):
         self.levels: dict[InkColor, Level] = {}
         self.waste: dict[int, Waste] = {}
 
-        self.update = ttk.Button(self, text="Refresh", command=self.update_status)
+        self.update = ttk.Button(self, text=STRINGS.refresh, command=self.update_status)
         self.update.pack(side="bottom")
 
         self.update_status()
@@ -119,7 +122,7 @@ class PrinterInfo(ttk.Frame):
                     self.waste_frame,
                     level,
                     max_level,
-                    f"Waste ink counter {i}",
+                    STRINGS.waste_counter_label(i),
                 )
 
             self.waste[i].update_level(level)
@@ -131,8 +134,8 @@ class PrinterInfo(ttk.Frame):
         self.update_status()
 
         messagebox.showinfo(
-            "Restart printer",
-            "Waste ink counters have been reset. You must now restart the printer.",
+            STRINGS.restart_title,
+            STRINGS.restart_body,
         )
 
 
@@ -195,14 +198,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 root = tk.Tk()
-root.title("ez-reset")
+root.title(STRINGS.app_title)
 style = ttk.Style(root)
 style.theme_use("winnative")
 
 
 def show_error(self, *args) -> None:  # noqa: ANN001,ANN002,ARG001
     err = traceback.format_exc()
-    messagebox.showerror("Exception", str(err))
+    messagebox.showerror(STRINGS.exception_title, str(err))
 
 
 tk.Tk.report_callback_exception = show_error
