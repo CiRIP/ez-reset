@@ -1017,8 +1017,23 @@ ez-reset has definitions for (and thus *theoretically* supports) the following p
 
 ## Requirements
 
-- Windows
+- Windows or macOS
 - Supported Epson printer connected via USB
+
+### macOS support
+
+The app can run on macOS using USB Printer Class via `pyusb`, but you must install `libusb` first:
+
+```bash
+brew install libusb
+```
+
+Then install and run as usual:
+
+```bash
+pip install .
+python -m ez_reset
+```
 
 ## Installation (easy)
 
