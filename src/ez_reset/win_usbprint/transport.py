@@ -3,16 +3,23 @@ import time
 from types import TracebackType
 from typing import Self
 
+import pywintypes
+import win32event
+import winerror
 from win32file import (
     FILE_FLAG_NO_BUFFERING,
+    FILE_FLAG_OVERLAPPED,
     FILE_FLAG_WRITE_THROUGH,
     FILE_SHARE_READ,
     FILE_SHARE_WRITE,
     GENERIC_READ,
     GENERIC_WRITE,
     OPEN_EXISTING,
+    AllocateReadBuffer,
+    CancelIo,
     CreateFileW,
     DeviceIoControl,
+    GetOverlappedResult,
     ReadFile,
     WriteFile,
 )
@@ -25,6 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 MAX_TRANSFER_SIZE = 0x400000
+
+# The printer may stay silent, or refuse data while it is busy: every transfer has a deadline,
+# so that a silent printer produces an error instead of freezing the application.
+IO_TIMEOUT_MS = 10_000
+DRAIN_TIMEOUT_MS = 200
 
 
 class USBPRINTTransport(Transport):
@@ -43,7 +55,7 @@ class USBPRINTTransport(Transport):
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             None,
             OPEN_EXISTING,
-            FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH,
+            FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH | FILE_FLAG_OVERLAPPED,
             None,
         )
 
@@ -53,7 +65,7 @@ class USBPRINTTransport(Transport):
             "DeviceIoControl(%d, IOCTL_USBPRINT_SOFT_RESET, NULL, 1024)",
             self.handle.handle,
         )
-        DeviceIoControl(self.handle, IOCTL_USBPRINT_SOFT_RESET, None, 1024)
+        self._control(IOCTL_USBPRINT_SOFT_RESET)
         logger.debug("    Issued soft reset to %d", self.handle.handle)
 
         self.closed = False
@@ -72,6 +84,41 @@ class USBPRINTTransport(Transport):
 
         return False
 
+    def _wait(self, overlapped: pywintypes.OVERLAPPED, timeout_ms: int, operation: str) -> int:
+        """Wait for an overlapped transfer; cancel it and raise TimeoutError when the deadline expires."""
+        if win32event.WaitForSingleObject(overlapped.hEvent, timeout_ms) == win32event.WAIT_TIMEOUT:
+            CancelIo(self.handle)
+            try:
+                GetOverlappedResult(self.handle, overlapped, True)
+            except pywintypes.error as error:
+                if error.winerror != winerror.ERROR_OPERATION_ABORTED:
+                    raise
+
+            msg = f"The printer did not complete the {operation} within {timeout_ms} ms"
+            raise TimeoutError(msg)
+
+        return GetOverlappedResult(self.handle, overlapped, True)
+
+    @staticmethod
+    def _new_overlapped() -> pywintypes.OVERLAPPED:
+        overlapped = pywintypes.OVERLAPPED()
+        overlapped.hEvent = win32event.CreateEvent(None, True, False, None)
+        return overlapped
+
+    def _control(self, code: int) -> bytes:
+        overlapped = self._new_overlapped()
+        buffer = AllocateReadBuffer(1024)
+        DeviceIoControl(self.handle, code, None, buffer, overlapped)
+        size = self._wait(overlapped, IO_TIMEOUT_MS, "control request")
+        return bytes(buffer[:size])
+
+    def _read_once(self, timeout_ms: int) -> bytes:
+        overlapped = self._new_overlapped()
+        buffer = AllocateReadBuffer(MAX_TRANSFER_SIZE)
+        ReadFile(self.handle, buffer, overlapped)
+        size = self._wait(overlapped, timeout_ms, "read")
+        return bytes(buffer[:size])
+
     def write(self, data: bytes) -> None:
         if self.closed:
             msg = f"Handle to USBPRINT device {self.path} is closed"
@@ -82,7 +129,9 @@ class USBPRINTTransport(Transport):
             if len(data) > 32:
                 logger.debug("    Above call was truncated")
 
-        _status, bytes_written = WriteFile(self.handle, data)
+        overlapped = self._new_overlapped()
+        WriteFile(self.handle, data, overlapped)
+        bytes_written = self._wait(overlapped, IO_TIMEOUT_MS, "write")
 
         assert bytes_written == len(data)
 
@@ -94,9 +143,15 @@ class USBPRINTTransport(Transport):
             msg = f"Handle to USBPRINT device {self.path} is closed"
             raise OSError(msg)
 
+        deadline = time.monotonic() + IO_TIMEOUT_MS / 1000
+
         while len(self._buffer) < size:
-            _status, data = ReadFile(self.handle, MAX_TRANSFER_SIZE)
-            self._buffer += data
+            remaining_ms = int((deadline - time.monotonic()) * 1000)
+            if remaining_ms <= 0:
+                msg = f"The printer did not send {size} bytes within {IO_TIMEOUT_MS} ms"
+                raise TimeoutError(msg)
+
+            self._buffer += self._read_once(remaining_ms)
 
             if len(self._buffer) < size:
                 time.sleep(0.01)
@@ -107,10 +162,17 @@ class USBPRINTTransport(Transport):
         return read
 
     def drain(self) -> None:
-        remaining = True
-        while remaining:
-            _status, data = ReadFile(self.handle, MAX_TRANSFER_SIZE)
-            remaining = len(data) != 0
+        """Discard whatever the printer has queued; a silent printer simply means there is nothing to discard."""
+        while True:
+            try:
+                data = self._read_once(DRAIN_TIMEOUT_MS)
+            except TimeoutError:
+                return
+
+            if not data:
+                return
+
+            logger.debug("    Drained %d bytes", len(data))
 
     def identify(self) -> str:
-        return DeviceIoControl(self.handle, IOCTL_USBPRINT_GET_1284_ID, None, 1024)[2:].decode("ascii")
+        return self._control(IOCTL_USBPRINT_GET_1284_ID)[2:].decode("ascii")

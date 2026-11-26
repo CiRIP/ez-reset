@@ -36,7 +36,16 @@ class PrinterList(ttk.Frame):
         selected_index = self.list.curselection()[0]
 
         usb_transport = USBPRINTTransport(self._printers[selected_index]).__enter__()
-        backend = D4ControlBackend(usb_transport).__enter__()
+        try:
+            backend = D4ControlBackend(usb_transport).__enter__()
+        except TimeoutError as error:
+            usb_transport.__exit__(None, None, None)
+            messagebox.showerror(
+                "Printer not responding",
+                f"{error}.\n\nThe printer is busy: bring it back to its home screen, close any Epson "
+                "software that may be using it and try again.",
+            )
+            return
 
         window = tk.Toplevel()
         window.minsize(200, 300)
