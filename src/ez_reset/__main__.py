@@ -30,7 +30,18 @@ class PrinterList(ttk.Frame):
         self.list.delete(0, tk.END)
 
         for idx, device in enumerate(self._printers):
-            self.list.insert(idx, device)
+            self.list.insert(idx, self.display_name(device))
+
+    @staticmethod
+    def display_name(device: str) -> str:
+        """Return the printer description, or the device path if the printer does not answer."""
+        try:
+            with USBPRINTTransport(device) as transport:
+                identifier = parse_identifier(transport.identify())
+        except Exception:  # noqa: BLE001
+            return device
+
+        return identifier.get("DES") or identifier.get("MDL") or device
 
     def open_printer(self, _event: tk.Event) -> None:
         selected_index = self.list.curselection()[0]
